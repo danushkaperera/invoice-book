@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>Invoice Book</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231e4d3a'/%3E%3Cpath d='M8 9h16v2H8zm0 5h16v2H8zm0 5h10v2H8z' fill='%23fffdf9'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <p class="wordmark">Invoice Book</p>
+        <p class="tagline">Australian tax invoices, with company details saved in a local file</p>
+      </div>
+      <div class="topbar-actions">
+        <nav id="app-nav" aria-label="Primary" hidden>
+          <button type="button" class="tab" id="nav-new" aria-current="page">New invoice</button>
+          <button type="button" class="tab" id="nav-saved">
+            Saved
+            <span class="count" id="saved-count">0</span>
+          </button>
+        </nav>
+        <div id="account-bar" class="account-bar" hidden>
+          <span id="account-name"></span>
+          <button type="button" class="btn ghost" id="log-out">Log out</button>
+        </div>
+      </div>
+    </header>
+    <p id="storage-status" class="storage-status" hidden></p>
+
+    <section id="view-auth" class="auth-screen">
+      <div class="auth-card card">
+        <h1 class="auth-title" id="auth-title">Sign in</h1>
+        <p class="hint">Each company has its own sign-in. Details are kept in a file on this computer and filled in after you sign in.</p>
+        <p id="auth-offline" class="errors" hidden>The account file is not running. In this folder, run <code>python server.py</code>, then open <code>http://127.0.0.1:4173</code>.</p>
+        <div class="auth-switch" role="tablist" aria-label="Account">
+          <button type="button" class="tab" id="show-login" role="tab" aria-selected="true" aria-controls="login-form">Sign in</button>
+          <button type="button" class="tab" id="show-register" role="tab" aria-selected="false" aria-controls="register-form">Create account</button>
+        </div>
+        <p id="auth-error" class="field-error" hidden></p>
+
+        <form id="login-form">
+          <label class="field" for="login-username">Username
+            <input id="login-username" type="text" autocomplete="username" maxlength="40" required />
+          </label>
+          <label class="field" for="login-password">Password
+            <input id="login-password" type="password" autocomplete="current-password" maxlength="200" required />
+          </label>
+          <button type="submit" class="btn primary" id="login-submit">Sign in</button>
+        </form>
+
+        <form id="register-form" hidden>
+          <label class="field" for="reg-username">Username
+            <input id="reg-username" type="text" autocomplete="username" maxlength="40" required />
+          </label>
+          <div class="grid-2">
+            <label class="field" for="reg-password">Password
+              <input id="reg-password" type="password" autocomplete="new-password" maxlength="200" required />
+            </label>
+            <label class="field" for="reg-password2">Confirm password
+              <input id="reg-password2" type="password" autocomplete="new-password" maxlength="200" required />
+            </label>
+          </div>
+          <p class="hint">Use at least 8 characters. Company details below are saved to your account.</p>
+          <label class="field" for="reg-company-name">Company name
+            <input id="reg-company-name" type="text" maxlength="120" required />
+          </label>
+          <label class="field" for="reg-abn">ABN / ACN
+            <input id="reg-abn" type="text" maxlength="20" />
+          </label>
+          <label class="field" for="reg-address">Address
+            <textarea id="reg-address" maxlength="500"></textarea>
+          </label>
+          <div class="grid-2">
+            <label class="field" for="reg-phone">Phone
+              <input id="reg-phone" type="tel" maxlength="40" />
+            </label>
+            <label class="field" for="reg-email">Email
+              <input id="reg-email" type="email" maxlength="120" />
+            </label>
+          </div>
+          <button type="submit" class="btn primary" id="register-submit">Create account</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="view-create" class="view" hidden>
+      <div class="workspace">
+        <form id="invoice-form" class="form-panel" novalidate>
+          <div id="form-errors" class="errors" tabindex="-1" hidden>
+            <p>Add the missing details before generating.</p>
+            <ul id="form-error-list"></ul>
+          </div>
+          <p id="edit-banner" class="edit-banner" hidden>You are updating a saved invoice. Generate again to replace it.</p>
+
+          <fieldset class="card">
+            <legend class="section-title">Template</legend>
+            <p class="hint">Choose a layout and color. Both are saved with the invoice.</p>
+            <div class="template-picker" role="radiogroup" aria-label="Invoice template">
+              <label class="template-option">
+                <input type="radio" name="invoice-template" value="classic" checked />
+                <span class="template-swatch swatch-classic" aria-hidden="true"></span>
+                <span>Classic</span>
+              </label>
+              <label class="template-option">
+                <input type="radio" name="invoice-template" value="banner" />
+                <span class="template-swatch swatch-banner" aria-hidden="true"></span>
+                <span>Banner</span>
+              </label>
+              <label class="template-option">
+                <input type="radio" name="invoice-template" value="editorial" />
+                <span class="template-swatch swatch-editorial" aria-hidden="true"></span>
+                <span>Editorial</span>
+              </label>
+            </div>
+            <div class="theme-row">
+              <label class="theme-custom" for="theme-color">Theme color</label>
+              <input id="theme-color" type="color" value="#1e4d3a" aria-label="Theme color" />
+              <div class="theme-presets" role="group" aria-label="Theme color presets">
+                <button type="button" class="theme-dot" data-theme="#1e4d3a" style="background:#1e4d3a" aria-label="Forest" aria-pressed="true"></button>
+                <button type="button" class="theme-dot" data-theme="#1e3a5f" style="background:#1e3a5f" aria-label="Navy" aria-pressed="false"></button>
+                <button type="button" class="theme-dot" data-theme="#7f1d1d" style="background:#7f1d1d" aria-label="Burgundy" aria-pressed="false"></button>
+                <button type="button" class="theme-dot" data-theme="#0f766e" style="background:#0f766e" aria-label="Teal" aria-pressed="false"></button>
+                <button type="button" class="theme-dot" data-theme="#ff6b1c" style="background:#FF6B1C" aria-label="Orange" aria-pressed="false"></button>
+                <button type="button" class="theme-dot" data-theme="#5b3a6e" style="background:#5b3a6e" aria-label="Plum" aria-pressed="false"></button>
+                <button type="button" class="theme-dot" data-theme="#241c16" style="background:#241c16" aria-label="Ink" aria-pressed="false"></button>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="card">
+            <legend class="section-title">Company details</legend>
+            <p class="hint">Saved in your account file, filled in when you sign in, and printed on each invoice. Change them here and they stay with your account.</p>
+
+            <div class="logo-row">
+              <div id="logo-preview" class="logo-preview" aria-hidden="true">Logo</div>
+              <div class="logo-actions">
+                <label class="btn">
+                  Upload logo
+                  <input id="logo-input" class="sr-only" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+                </label>
+                <button type="button" class="btn ghost" id="logo-remove" hidden>Remove</button>
+              </div>
+            </div>
+
+            <label class="field" for="company-name">
+              <span class="lbl">Company name <abbr class="req" title="required">*</abbr></span>
+              <input id="company-name" name="organization" autocomplete="organization" maxlength="120" required />
+            </label>
+            <label class="field" for="company-abn">
+              <span class="lbl">ABN / ACN</span>
+              <input id="company-abn" name="abn" inputmode="numeric" autocomplete="off" maxlength="20" spellcheck="false" />
+            </label>
+            <label class="field" for="company-address">
+              <span class="lbl">Address</span>
+              <textarea id="company-address" name="street-address" autocomplete="street-address" maxlength="500" rows="3"></textarea>
+            </label>
+            <div class="grid-2">
+              <label class="field" for="company-phone">
+                <span class="lbl">Phone</span>
+                <input id="company-phone" name="tel" type="tel" autocomplete="tel" maxlength="40" />
+              </label>
+              <label class="field" for="company-email">
+                <span class="lbl">Email</span>
+                <input id="company-email" name="email" type="email" autocomplete="email" maxlength="120" spellcheck="false" />
+              </label>
+            </div>
+            <div class="grid-2">
+              <label class="field" for="invoice-date">
+                <span class="lbl">Date <abbr class="req" title="required">*</abbr></span>
+                <input id="invoice-date" name="invoice-date" type="date" required />
+              </label>
+              <label class="field" for="invoice-number">
+                <span class="lbl">Invoice number</span>
+                <input id="invoice-number" name="invoice-number" maxlength="40" spellcheck="false" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="card">
+            <legend class="section-title">Bill to</legend>
+            <label class="field" for="bill-name">
+              <span class="lbl">Name <abbr class="req" title="required">*</abbr></span>
+              <input id="bill-name" name="bill-name" autocomplete="name" maxlength="120" required />
+            </label>
+            <label class="field" for="bill-address">
+              <span class="lbl">Address</span>
+              <textarea id="bill-address" name="bill-address" autocomplete="street-address" maxlength="500" rows="3"></textarea>
+            </label>
+            <label class="field" for="bill-phone">
+              <span class="lbl">Phone</span>
+              <input id="bill-phone" name="bill-phone" type="tel" autocomplete="tel" maxlength="40" />
+            </label>
+          </fieldset>
+
+          <fieldset class="card">
+            <legend class="section-title">Description</legend>
+            <p class="hint">Add a description with a unit price and units. The price is unit price × units, excluding GST. Tick it to put it on this invoice.</p>
+            <div class="add-service">
+              <label class="field" for="service-desc">
+                <span class="lbl">Description</span>
+                <input id="service-desc" maxlength="180" />
+              </label>
+              <label class="field" for="service-price">
+                <span class="lbl">Unit price</span>
+                <input id="service-price" type="number" min="0" step="0.01" inputmode="decimal" />
+              </label>
+              <label class="field" for="service-units">
+                <span class="lbl">Units</span>
+                <input id="service-units" type="number" min="0.01" step="0.01" inputmode="decimal" value="1" />
+              </label>
+              <p id="service-calc" class="calc-price">Price $0.00</p>
+              <button type="button" class="btn" id="service-add">Add</button>
+            </div>
+            <p id="service-error" class="field-error" hidden></p>
+            <p id="catalog-empty" class="empty">No descriptions yet. Add one and it stays on this device.</p>
+            <ul id="catalog-list" class="catalog"></ul>
+          </fieldset>
+
+          <div class="money-box" aria-live="polite">
+            <div><span>Subtotal</span><strong id="sum-subtotal">$0.00</strong></div>
+            <div><span>GST 10%</span><strong id="sum-gst">$0.00</strong></div>
+            <div class="grand"><span>Total incl. GST</span><strong id="sum-total">$0.00</strong></div>
+            <p class="hint">GST is 10% of the subtotal. Amounts are in AUD.</p>
+          </div>
+
+          <div class="actions">
+            <button type="submit" class="btn primary" id="generate-btn">Generate invoice</button>
+            <button type="button" class="btn" id="print-draft">Print</button>
+            <button type="button" class="btn ghost" id="reset-draft">Reset invoice</button>
+          </div>
+          <p class="hint storage-note">Invoices stay in this browser. Company details are saved in the account file on this computer.</p>
+        </form>
+
+        <aside class="preview-column">
+          <p class="preview-label">Live preview</p>
+          <div id="preview-mount"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="view-invoices" class="view" hidden>
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">Saved invoices</h2>
+          <p class="hint">Stored in this browser. Download a backup before clearing site data.</p>
+        </div>
+        <div class="row-actions">
+          <button type="button" class="btn" id="backup-download">Download backup</button>
+          <label class="btn">
+            Restore backup
+            <input id="backup-restore" class="sr-only" type="file" accept="application/json,.json" />
+          </label>
+        </div>
+      </div>
+      <label class="search" for="invoice-search">
+        <span class="sr-only">Search saved invoices</span>
+        <input id="invoice-search" type="search" placeholder="Search by client, number, or description" />
+      </label>
+      <ul id="invoice-list" class="inv-list"></ul>
+    </section>
+
+    <section id="view-detail" class="view" hidden>
+      <div class="detail-bar">
+        <h2 id="detail-title" class="panel-title" tabindex="-1"></h2>
+        <div class="row-actions">
+          <button type="button" class="btn ghost" id="detail-back">Back</button>
+          <button type="button" class="btn" id="detail-edit">Edit</button>
+          <button type="button" class="btn primary" id="detail-print">Print</button>
+          <button type="button" class="btn danger" id="detail-delete">Delete</button>
+        </div>
+      </div>
+      <div id="detail-mount" class="detail-sheet"></div>
+    </section>
+  </div>
+
+  <div id="print-host" aria-hidden="true"></div>
+  <iframe id="print-frame" title="Invoice print"></iframe>
+  <div id="toast" role="status"></div>
+
+  <template id="sheet-template">
+    <article class="sheet template-classic">
+      <header class="sheet-top">
+        <div class="sheet-brand">
+          <img data-field="logo" class="sheet-logo" alt="" />
+          <div>
+            <p class="sheet-kicker">From</p>
+            <h1 data-field="company-name"></h1>
+            <p data-field="company-abn"></p>
+            <p data-field="company-address"></p>
+            <p data-field="company-contact"></p>
+          </div>
+        </div>
+        <div class="sheet-doc">
+          <p class="sheet-title">Tax invoice</p>
+          <p class="sheet-number"><span>Invoice</span> <strong data-field="number"></strong></p>
+          <p class="sheet-date"><span>Date</span> <strong data-field="date"></strong></p>
+        </div>
+      </header>
+      <section class="sheet-bill">
+        <p class="sheet-kicker">Bill to</p>
+        <h2 data-field="bill-name"></h2>
+        <p data-field="bill-address"></p>
+        <p data-field="bill-phone"></p>
+      </section>
+      <table>
+        <caption class="sr-only">Line items</caption>
+        <thead>
+          <tr>
+            <th scope="col">Description</th>
+            <th scope="col" class="num">Units</th>
+            <th scope="col" class="num">Unit price</th>
+            <th scope="col" class="num">Price</th>
+          </tr>
+        </thead>
+        <tbody data-field="lines"></tbody>
+      </table>
+      <div class="sheet-totals">
+        <div><span>Subtotal</span><span data-field="subtotal"></span></div>
+        <div><span>GST 10%</span><span data-field="gst"></span></div>
+        <div class="grand"><span>Total incl. GST</span><span data-field="total"></span></div>
+      </div>
+      <p class="sheet-note">All amounts are in AUD. Prices exclude GST. Total includes GST of <span data-field="gst-words"></span>.</p>
+    </article>
+  </template>
+
+  <noscript>
+    <p class="noscript">Turn on JavaScript to generate invoices. This app stores them in your browser, not on a server.</p>
+  </noscript>
+  <script src="app.js" defer></script>
+</body>
+</html>
