@@ -102,7 +102,7 @@
     applyTheme(color);
   }
 
-  const TEMPLATES = ["classic", "banner", "editorial"];
+  const TEMPLATES = ["classic", "banner", "editorial", "soft", "trade"];
 
   function templateName(value) {
     return TEMPLATES.includes(value) ? value : "classic";
@@ -358,6 +358,8 @@
     };
   }
 
+  const INVOICE_START = 21989;
+
   function freshDraft(invoices) {
     return {
       number: nextNumber(invoices),
@@ -383,8 +385,14 @@
       }
     }
     const editId = asText(raw.editId, 80);
+    const editing = invoices.some((invoice) => invoice.id === editId);
+    let number = asText(raw.number, 40) || base.number;
+    if (!editing) {
+      const match = /^INV-(\d+)$/i.exec(number.trim());
+      if (match && parseInt(match[1], 10) < INVOICE_START) number = base.number;
+    }
     return {
-      number: asText(raw.number, 40) || base.number,
+      number,
       date: formatDate(raw.date) ? raw.date : base.date,
       billTo: {
         name: asText(raw.billTo && raw.billTo.name, 120),
@@ -399,12 +407,12 @@
   }
 
   function nextNumber(invoices) {
-    let max = 0;
+    let max = INVOICE_START - 1;
     for (const invoice of invoices) {
       const match = /^INV-(\d+)$/i.exec(String(invoice.number || "").trim());
       if (match) max = Math.max(max, parseInt(match[1], 10));
     }
-    return `INV-${String(max + 1).padStart(4, "0")}`;
+    return `INV-${String(max + 1).padStart(6, "0")}`;
   }
 
   function totals(lines) {
@@ -461,40 +469,43 @@
   }
 
   function setField(root, name, value, placeholder) {
-    const node = root.querySelector(`[data-field="${name}"]`);
+    const nodes = root.querySelectorAll(`[data-field="${name}"]`);
     const text = (value ?? "").toString().trim();
-    if (!text && !placeholder) {
-      node.textContent = "";
-      node.hidden = true;
-      return;
-    }
-    node.hidden = false;
-    node.textContent = text || placeholder;
-    node.classList.toggle("is-placeholder", !text);
+    nodes.forEach((node) => {
+      if (!text && !placeholder) {
+        node.textContent = "";
+        node.hidden = true;
+        return;
+      }
+      node.hidden = false;
+      node.textContent = text || placeholder;
+      node.classList.toggle("is-placeholder", !text);
+    });
   }
 
   function fillSheet(root, model, placeholders) {
-    root.classList.remove("template-classic", "template-banner", "template-editorial");
+    root.classList.remove("template-classic", "template-banner", "template-editorial", "template-soft", "template-trade");
     root.classList.add(`template-${templateName(model.template)}`);
     applyTheme(model.theme, root);
     const company = model.company || blankCompany();
     const bill = model.billTo || { name: "", address: "", phone: "" };
-    const logo = root.querySelector('[data-field="logo"]');
-    if (company.logo) {
-      logo.src = company.logo;
-      logo.hidden = false;
-      logo.alt = company.name ? `${company.name} logo` : "Company logo";
-    } else {
-      logo.removeAttribute("src");
-      logo.hidden = true;
-      logo.alt = "";
-    }
+    root.querySelectorAll('[data-field="logo"]').forEach((logo) => {
+      if (company.logo) {
+        logo.src = company.logo;
+        logo.hidden = false;
+        logo.alt = company.name ? `${company.name} logo` : "Company logo";
+      } else {
+        logo.removeAttribute("src");
+        logo.hidden = true;
+        logo.alt = "";
+      }
+    });
 
     setField(root, "company-name", company.name, placeholders ? "Company name" : "");
     setField(root, "company-abn", formatAbn(company.abn), placeholders ? "ABN/ACN" : "");
     setField(root, "company-address", company.address, placeholders ? "Address" : "");
     setField(root, "company-contact", contactLine(company), placeholders ? "Phone · email" : "");
-    setField(root, "number", model.number, placeholders ? "INV-0001" : "");
+    setField(root, "number", model.number, placeholders ? "INV-021989" : "");
     setField(root, "date", formatDate(model.date), placeholders ? "Date" : "");
     setField(root, "bill-name", bill.name, placeholders ? "Client name" : "");
     setField(root, "bill-address", bill.address, placeholders ? "Client address" : "");
@@ -529,10 +540,18 @@
       }
     }
 
-    root.querySelector('[data-field="subtotal"]').textContent = aud.format(model.subtotal || 0);
-    root.querySelector('[data-field="gst"]').textContent = aud.format(model.gst || 0);
-    root.querySelector('[data-field="total"]').textContent = aud.format(model.total || 0);
-    root.querySelector('[data-field="gst-words"]').textContent = aud.format(model.gst || 0);
+    root.querySelectorAll('[data-field="subtotal"]').forEach((node) => {
+      node.textContent = aud.format(model.subtotal || 0);
+    });
+    root.querySelectorAll('[data-field="gst"]').forEach((node) => {
+      node.textContent = aud.format(model.gst || 0);
+    });
+    root.querySelectorAll('[data-field="total"]').forEach((node) => {
+      node.textContent = aud.format(model.total || 0);
+    });
+    root.querySelectorAll('[data-field="gst-words"]').forEach((node) => {
+      node.textContent = aud.format(model.gst || 0);
+    });
   }
 
   function updateRowAmounts() {
@@ -1347,10 +1366,19 @@
     setAuthError("");
   }
 
+  function accountOfflineMessage() {
+    const host = location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "The account file is not running. In this folder, run python server.py, then open http://127.0.0.1:4173.";
+    }
+    return "Accounts on this site need a Blob store. In Vercel, open Storage, create a Blob store, connect it to this project, and redeploy.";
+  }
+
   function showSignedOut(offline) {
     acceptProfileSync = false;
     state.user = null;
     state.token = "";
+    document.getElementById("auth-offline").textContent = accountOfflineMessage();
     document.getElementById("view-auth").hidden = false;
     document.getElementById("app-nav").hidden = true;
     document.getElementById("account-bar").hidden = true;
@@ -1642,7 +1670,7 @@
         enterApp(data.user);
       } catch (error) {
         setAuthError(error.message === "OFFLINE"
-          ? "The account file is not running."
+          ? accountOfflineMessage()
           : (error.message || "Could not sign in."));
         if (error.message === "OFFLINE") showSignedOut(true);
       } finally {
@@ -1686,7 +1714,7 @@
         toast("Account saved. Company details are filled in.");
       } catch (error) {
         setAuthError(error.message === "OFFLINE"
-          ? "The account file is not running."
+          ? accountOfflineMessage()
           : (error.message || "Could not create the account."));
         if (error.message === "OFFLINE") showSignedOut(true);
       } finally {

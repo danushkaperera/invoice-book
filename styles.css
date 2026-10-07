@@ -534,6 +534,25 @@ textarea {
     white;
 }
 
+.swatch-soft {
+  border: 0;
+  background:
+    linear-gradient(var(--accent-soft), var(--accent-soft)) 0 0 / 100% 46% no-repeat,
+    linear-gradient(#e7e1d8, #e7e1d8) 8px 32px / 36% 7px no-repeat,
+    linear-gradient(#e7e1d8, #e7e1d8) 54% 32px / 36% 7px no-repeat,
+    white;
+}
+
+.swatch-trade {
+  border: 0;
+  background:
+    linear-gradient(#241c16, #241c16) 8px 14px / 40% 3px no-repeat,
+    linear-gradient(#241c16, #241c16) 74% 10px / 16px 16px no-repeat,
+    linear-gradient(#ece8e2, #ece8e2) 8px 34px / 84% 8px no-repeat,
+    linear-gradient(#241c16, #241c16) 58% 44px / 34% 6px no-repeat,
+    white;
+}
+
 .theme-row {
   display: flex;
   flex-wrap: wrap;
@@ -828,6 +847,201 @@ textarea {
   border-top-color: var(--accent);
 }
 
+.sheet-parties,
+.sheet-foot {
+  display: none;
+}
+
+.sheet.template-soft,
+.sheet.template-trade {
+  border-top: 0;
+}
+
+.sheet.template-soft {
+  padding: 0 0 18px;
+}
+
+.sheet.template-soft .sheet-top,
+.sheet.template-trade .sheet-top {
+  flex-direction: row-reverse;
+}
+
+.sheet.template-soft .sheet-doc,
+.sheet.template-trade .sheet-doc,
+.sheet.template-soft .sheet-title,
+.sheet.template-trade .sheet-title {
+  text-align: left;
+}
+
+.sheet.template-soft .sheet-top {
+  background: var(--accent-soft);
+  margin: 0 0 18px;
+  padding: 26px 28px 20px;
+}
+
+.sheet.template-soft .sheet-title {
+  font-size: 2.45rem;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.sheet.template-soft .sheet-brand {
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.sheet.template-soft .sheet-identity .sheet-kicker,
+.sheet.template-soft .sheet-identity [data-field="company-abn"],
+.sheet.template-soft .sheet-identity [data-field="company-address"],
+.sheet.template-soft .sheet-identity [data-field="company-contact"],
+.sheet.template-soft .sheet-bill,
+.sheet.template-soft .party-meta,
+.sheet.template-trade .sheet-bill,
+.sheet.template-trade .party-from,
+.sheet.template-trade .sheet-doc .sheet-number,
+.sheet.template-trade .sheet-doc .sheet-date,
+.sheet.template-trade .sheet-identity .sheet-kicker,
+.sheet.template-trade .sheet-identity [data-field="company-contact"] {
+  display: none;
+}
+
+.sheet.template-soft .sheet-parties,
+.sheet.template-trade .sheet-parties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+}
+
+@container (max-width: 320px) {
+  .sheet.template-soft .sheet-parties,
+  .sheet.template-trade .sheet-parties {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sheet.template-soft .sheet-parties {
+  padding: 0 28px 16px;
+}
+
+.sheet.template-soft .party h2,
+.sheet.template-trade .party h2 {
+  font-size: 1.15rem;
+}
+
+.sheet.template-soft table {
+  width: calc(100% - 56px);
+  margin: 0 28px;
+}
+
+.sheet.template-soft th {
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-bottom: 0;
+  padding: 10px 8px;
+}
+
+.sheet.template-soft .sheet-totals,
+.sheet.template-soft .sheet-note {
+  margin-right: 28px;
+  margin-left: 28px;
+}
+
+.sheet.template-soft .sheet-totals {
+  margin-left: auto;
+}
+
+.sheet.template-soft .sheet-foot,
+.sheet.template-trade .sheet-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 18px 28px 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.sheet.template-soft .sheet-foot p,
+.sheet.template-trade .sheet-foot p {
+  margin: 0;
+}
+
+.sheet.template-trade {
+  padding: 28px 28px 16px;
+}
+
+.sheet.template-trade .sheet-title {
+  font-size: 2rem;
+  font-weight: 560;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.sheet.template-trade .sheet-brand {
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.sheet.template-trade .sheet-logo {
+  width: 96px;
+  height: 96px;
+  border: 2px solid var(--ink);
+  padding: 6px;
+  object-fit: contain;
+}
+
+.sheet.template-trade .party-meta {
+  text-align: right;
+}
+
+.sheet.template-trade .party-meta .sheet-number,
+.sheet.template-trade .party-meta .sheet-date {
+  margin: 0 0 4px;
+}
+
+.sheet.template-trade table {
+  border: 1px solid #e4e0d8;
+  border-collapse: collapse;
+}
+
+.sheet.template-trade th {
+  background: #f3f1ee;
+  color: var(--ink);
+  border-bottom: 1px solid #e4e0d8;
+}
+
+.sheet.template-trade td {
+  border-bottom: 1px solid #e4e0d8;
+}
+
+.sheet.template-trade .sheet-totals {
+  width: min(320px, 100%);
+  border: 1px solid #e4e0d8;
+  padding-top: 0;
+}
+
+.sheet.template-trade .sheet-totals div {
+  padding: 7px 10px;
+}
+
+.sheet.template-trade .sheet-totals .grand {
+  margin-top: 0;
+  padding: 9px 10px;
+  border-top: 0;
+  background: var(--ink);
+  color: #f7fbf8;
+}
+
+.sheet.template-trade .sheet-foot {
+  margin-left: 0;
+  margin-right: 0;
+}
+
 .panel-head,
 .detail-bar {
   display: flex;
@@ -1116,9 +1330,46 @@ textarea {
     border-left-color: var(--accent) !important;
   }
 
-  .sheet .grand,
+  .sheet:not(.template-trade) .grand,
   .sheet.template-banner th {
     color: var(--accent) !important;
+  }
+
+  .sheet.template-soft {
+    padding: 0 0 14mm;
+  }
+
+  .sheet.template-soft .sheet-top {
+    margin: 0 0 8mm;
+    padding: 14mm;
+    background: var(--accent-soft) !important;
+  }
+
+  .sheet.template-soft th {
+    background: var(--accent-soft) !important;
+  }
+
+  .sheet.template-soft .sheet-parties,
+  .sheet.template-soft table,
+  .sheet.template-soft .sheet-totals,
+  .sheet.template-soft .sheet-note,
+  .sheet.template-soft .sheet-foot {
+    margin-left: 14mm;
+    margin-right: 14mm;
+  }
+
+  .sheet.template-soft table {
+    width: auto;
+  }
+
+  .sheet.template-soft .sheet-totals {
+    margin-left: auto;
+  }
+
+  .sheet.template-trade .sheet-totals .grand {
+    background: var(--ink) !important;
+    color: #f7fbf8 !important;
+    border-top: 0 !important;
   }
 
   .sheet.template-banner .sheet-bill,

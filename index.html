@@ -37,7 +37,7 @@
     <section id="view-auth" class="auth-screen">
       <div class="auth-card card">
         <h1 class="auth-title" id="auth-title">Sign in</h1>
-        <p class="hint">Each company has its own sign-in. Details are kept in a file on this computer and filled in after you sign in.</p>
+        <p class="hint">Each company has its own sign-in. Company details are saved with the account and filled in after you sign in.</p>
         <p id="auth-offline" class="errors" hidden>The account file is not running. In this folder, run <code>python server.py</code>, then open <code>http://127.0.0.1:4173</code>.</p>
         <div class="auth-switch" role="tablist" aria-label="Account">
           <button type="button" class="tab" id="show-login" role="tab" aria-selected="true" aria-controls="login-form">Sign in</button>
@@ -117,6 +117,16 @@
                 <input type="radio" name="invoice-template" value="editorial" />
                 <span class="template-swatch swatch-editorial" aria-hidden="true"></span>
                 <span>Editorial</span>
+              </label>
+              <label class="template-option">
+                <input type="radio" name="invoice-template" value="soft" />
+                <span class="template-swatch swatch-soft" aria-hidden="true"></span>
+                <span>Soft</span>
+              </label>
+              <label class="template-option">
+                <input type="radio" name="invoice-template" value="trade" />
+                <span class="template-swatch swatch-trade" aria-hidden="true"></span>
+                <span>Trade</span>
               </label>
             </div>
             <div class="theme-row">
@@ -289,7 +299,7 @@
       <header class="sheet-top">
         <div class="sheet-brand">
           <img data-field="logo" class="sheet-logo" alt="" />
-          <div>
+          <div class="sheet-identity">
             <p class="sheet-kicker">From</p>
             <h1 data-field="company-name"></h1>
             <p data-field="company-abn"></p>
@@ -309,6 +319,25 @@
         <p data-field="bill-address"></p>
         <p data-field="bill-phone"></p>
       </section>
+      <div class="sheet-parties">
+        <section class="party party-from">
+          <p class="sheet-kicker">From</p>
+          <h2 data-field="company-name"></h2>
+          <p data-field="company-abn"></p>
+          <p data-field="company-address"></p>
+          <p data-field="company-contact"></p>
+        </section>
+        <section class="party party-bill">
+          <p class="sheet-kicker">Bill to</p>
+          <h2 data-field="bill-name"></h2>
+          <p data-field="bill-address"></p>
+          <p data-field="bill-phone"></p>
+        </section>
+        <section class="party party-meta">
+          <p class="sheet-number"><span>Invoice</span> <strong data-field="number"></strong></p>
+          <p class="sheet-date"><span>Date</span> <strong data-field="date"></strong></p>
+        </section>
+      </div>
       <table>
         <caption class="sr-only">Line items</caption>
         <thead>
@@ -326,6 +355,11 @@
         <div><span>GST 10%</span><span data-field="gst"></span></div>
         <div class="grand"><span>Total incl. GST</span><span data-field="total"></span></div>
       </div>
+      <footer class="sheet-foot">
+        <p data-field="company-name"></p>
+        <p data-field="company-contact"></p>
+        <p data-field="company-address"></p>
+      </footer>
       <p class="sheet-note">All amounts are in AUD. Prices exclude GST. Total includes GST of <span data-field="gst-words"></span>.</p>
     </article>
   </template>
