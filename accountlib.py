@@ -182,11 +182,25 @@ def header_named(headers, name):
     return ""
 
 
-def blob_credentials():
+def oidc_token():
     headers = request_headers()
+    for name in ("x-vercel-oidc-token", "x-vercel-internal-oidc-token"):
+        found = header_named(headers, name)
+        if found:
+            return found
+    if headers is not None and hasattr(headers, "keys"):
+        for key in headers.keys():
+            if isinstance(key, str) and "oidc" in key.lower():
+                found = header_named(headers, key)
+                if found:
+                    return found
+    return env_named("VERCEL_OIDC_TOKEN")
+
+
+def blob_credentials():
     store_id = env_named("BLOB_STORE_ID")
     token = env_named("BLOB_READ_WRITE_TOKEN")
-    oidc = header_named(headers, "x-vercel-oidc-token") or env_named("VERCEL_OIDC_TOKEN")
+    oidc = oidc_token()
     options = []
     if oidc and store_id:
         options.append(("oidc", oidc, store_id))
@@ -197,8 +211,8 @@ def blob_credentials():
 
 def missing_blob_message():
     if env_named("BLOB_STORE_ID"):
-        return "The account file is connected to the Blob store, but this deployment did not receive an access token. Redeploy, then register again."
-    return "Connect a Blob store to this Vercel project and redeploy. Open Storage, create a Blob store, and connect it to the project."
+        return "The account file can see the Blob store, but this deployment has no access token. Redeploy after BLOB_READ_WRITE_TOKEN is set for Production."
+    return "The account file has no Blob token in this deployment. In Vercel, open Settings, then Environment Variables, and add BLOB_READ_WRITE_TOKEN for Production. Copy that token from the invoice-book-blob store, save it, and redeploy."
 
 
 def blob_headers(kind, secret, store_id, extra=None):

@@ -25,6 +25,11 @@
   display: none !important;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   background:
@@ -34,6 +39,9 @@ body {
   font-family: var(--sans);
   font-size: 16px;
   line-height: 1.45;
+  overflow-x: clip;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 button,
@@ -54,7 +62,7 @@ img {
 .wrap {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
-  padding-bottom: 56px;
+  padding-bottom: calc(56px + env(safe-area-inset-bottom));
 }
 
 .topbar {
@@ -1166,7 +1174,7 @@ textarea {
 #toast {
   position: fixed;
   z-index: 20;
-  bottom: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
   left: 50%;
   max-width: min(92vw, 440px);
   transform: translateX(-50%) translateY(12px);
@@ -1207,23 +1215,65 @@ textarea {
 }
 
 @container (max-width: 560px) {
-  .sheet-top {
+  .sheet-top,
+  .sheet.template-soft .sheet-top,
+  .sheet.template-trade .sheet-top {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .sheet-doc,
   .sheet-title {
     text-align: left;
   }
+
+  .sheet.template-soft .sheet-brand,
+  .sheet.template-trade .sheet-brand {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .sheet.template-soft .sheet-title,
+  .sheet.template-trade .sheet-title {
+    font-size: 1.7rem;
+    letter-spacing: 0.04em;
+  }
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1100px) {
   .workspace {
     grid-template-columns: 1fr;
   }
 
   .preview-column {
     position: static;
+  }
+
+  .topbar,
+  .topbar-actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1100px) {
+  .wrap {
+    width: min(920px, calc(100% - 48px));
+  }
+
+  .add-service {
+    grid-template-columns: minmax(0, 1.4fr) 140px 100px auto;
+  }
+
+  .calc-price {
+    grid-column: 1 / -1;
+  }
+
+  .template-picker {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .preview-column {
+    padding: 22px;
   }
 }
 
@@ -1234,10 +1284,13 @@ textarea {
   .grid-2,
   .add-service,
   .editor,
-  .template-picker,
   .sheet.template-classic .sheet-top {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .template-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .sheet-doc,
@@ -1249,12 +1302,107 @@ textarea {
     grid-template-columns: 1fr 1fr;
   }
 
+  .service {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
   .service-side {
-    justify-content: space-between;
+    justify-content: flex-start;
   }
 
   .wordmark {
     font-size: 1.7rem;
+  }
+
+  .tagline {
+    font-size: 0.88rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .wrap {
+    width: min(1180px, calc(100% - 20px));
+  }
+
+  .topbar {
+    padding-top: calc(18px + env(safe-area-inset-top));
+    align-items: stretch;
+  }
+
+  .topbar-actions,
+  nav,
+  .account-bar {
+    width: 100%;
+  }
+
+  nav .tab,
+  .account-bar .btn,
+  .actions .btn,
+  .detail-bar .btn {
+    flex: 1 1 auto;
+  }
+
+  .card,
+  .preview-column {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .sheet {
+    padding: 18px 14px 16px;
+  }
+
+  .sheet.template-banner {
+    padding: 0 14px 16px;
+  }
+
+  .sheet.template-banner .sheet-top {
+    margin-left: -14px;
+    margin-right: -14px;
+    padding: 16px 14px 14px;
+  }
+
+  .sheet.template-soft .sheet-top,
+  .sheet.template-soft .sheet-parties,
+  .sheet.template-trade {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .sheet.template-soft table,
+  .sheet.template-soft .sheet-totals,
+  .sheet.template-soft .sheet-note,
+  .sheet.template-soft .sheet-foot,
+  .sheet.template-trade .sheet-foot {
+    width: auto;
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+
+  .sheet th,
+  .sheet td {
+    padding: 8px 4px;
+  }
+
+  .panel-title {
+    font-size: 1.6rem;
+  }
+
+  .search input {
+    max-width: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .theme-dot {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .template-option {
+    min-height: 44px;
   }
 }
 
