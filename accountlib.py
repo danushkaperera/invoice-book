@@ -145,16 +145,60 @@ class FileStore:
         self.write_json(self.sessions_path, {"sessions": book.get("sessions", [])})
 
 
+_REQUEST = threading.local()
+
+
+def bind_request(headers):
+    _REQUEST.headers = headers
+
+
+def request_headers():
+    return getattr(_REQUEST, "headers", None)
+
+
+def env_named(name):
+    direct = os.environ.get(name, "")
+    if isinstance(direct, str) and direct.strip():
+        return direct.strip()
+    for key, value in os.environ.items():
+        if key == name or key.endswith("_" + name):
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return ""
+
+
+def header_named(headers, name):
+    if headers is None:
+        return ""
+    value = headers.get(name, "")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    keys = headers.keys() if hasattr(headers, "keys") else []
+    for key in keys:
+        if isinstance(key, str) and key.lower() == name.lower():
+            found = headers.get(key, "")
+            if isinstance(found, str) and found.strip():
+                return found.strip()
+    return ""
+
+
 def blob_credentials():
-    oidc = os.environ.get("VERCEL_OIDC_TOKEN", "").strip()
-    store_id = os.environ.get("BLOB_STORE_ID", "").strip()
-    token = os.environ.get("BLOB_READ_WRITE_TOKEN", "").strip()
+    headers = request_headers()
+    store_id = env_named("BLOB_STORE_ID")
+    token = env_named("BLOB_READ_WRITE_TOKEN")
+    oidc = header_named(headers, "x-vercel-oidc-token") or env_named("VERCEL_OIDC_TOKEN")
     options = []
     if oidc and store_id:
         options.append(("oidc", oidc, store_id))
     if token:
-        options.append(("token", token, ""))
+        options.append(("token", token, store_id))
     return options
+
+
+def missing_blob_message():
+    if env_named("BLOB_STORE_ID"):
+        return "The account file is connected to the Blob store, but this deployment did not receive an access token. Redeploy, then register again."
+    return "Connect a Blob store to this Vercel project and redeploy. Open Storage, create a Blob store, and connect it to the project."
 
 
 def blob_headers(kind, secret, store_id, extra=None):
@@ -185,10 +229,7 @@ class BlobStore:
     def read(self):
         options = blob_credentials()
         if not options:
-            raise AccountError(
-                503,
-                "Connect a Blob store to this Vercel project and redeploy. Open Storage, create a Blob store, and connect it to the project.",
-            )
+            raise AccountError(503, missing_blob_message())
         last_error = None
         for kind, secret, store_id in options:
             try:
@@ -241,10 +282,7 @@ class BlobStore:
     def write(self, book):
         options = blob_credentials()
         if not options:
-            raise AccountError(
-                503,
-                "Connect a Blob store to this Vercel project and redeploy. Open Storage, create a Blob store, and connect it to the project.",
-            )
+            raise AccountError(503, missing_blob_message())
         body = json.dumps({"users": book.get("users", []), "sessions": book.get("sessions", [])}).encode("utf-8")
         extra = {
             "content-type": "application/json",
@@ -430,6 +468,7 @@ def hosted_store():
 
 
 def handle_http(handler, action):
+    bind_request(handler.headers)
     try:
         authorization = handler.headers.get("Authorization", "")
         if action in ("me", "logout"):
@@ -455,3 +494,5 @@ def handle_http(handler, action):
         send_json(handler, exc.status if exc.status >= 400 else 502, {"error": message[:300]})
     except Exception:
         send_json(handler, 500, {"error": "Could not save the account."})
+    finally:
+        bind_request(None)
