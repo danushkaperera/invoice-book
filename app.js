@@ -1369,7 +1369,7 @@
   function accountOfflineMessage() {
     const host = location.hostname;
     if (host === "localhost" || host === "127.0.0.1") {
-      return "The account file is not running. In this folder, run python server.py, then open http://127.0.0.1:4173.";
+      return "The account file is not running. In this folder, run python local_server.py, then open http://127.0.0.1:4173.";
     }
     return "Accounts on this site need a Blob store. In Vercel, open Storage, create a Blob store, connect it to this project, and redeploy.";
   }

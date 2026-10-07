@@ -1,8 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": null,
+  "installCommand": null,
   "functions": {
     "api/**/*.py": {
-      "excludeFiles": "{data/**,__pycache__/**,**/*.pyc}"
+      "excludeFiles": "{data/**,__pycache__/**,**/*.pyc,local_server.py}"
     }
   }
 }

@@ -1,4 +1,9 @@
-"""Local account file for Invoice Book. No database: users live in data/users.json."""
+"""Local account file for Invoice Book. No database: users live in data/users.json.
+
+This file is named local_server.py on purpose. Vercel treats a root file named
+server.py as the application and runs it during the build. This server stays
+running, so that build never finishes. On Vercel, accounts are handled by api/.
+"""
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
