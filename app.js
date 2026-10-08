@@ -10,6 +10,7 @@
       catalog: `${prefix}.catalog`,
       invoices: `${prefix}.invoices`,
       draft: `${prefix}.draft`,
+      concrete: `${prefix}.concrete`,
     };
   }
 
@@ -23,6 +24,7 @@
     catalog: [],
     invoices: [],
     draft: null,
+    concrete: { rate: null, areas: [] },
     view: "create",
     editingId: null,
     detailId: null,
@@ -673,6 +675,150 @@
     });
   }
 
+  const ADDRESS_STATES = {
+    "New South Wales": "NSW",
+    Victoria: "VIC",
+    Queensland: "QLD",
+    "South Australia": "SA",
+    "Western Australia": "WA",
+    Tasmania: "TAS",
+    "Northern Territory": "NT",
+    "Australian Capital Territory": "ACT",
+  };
+
+  function formatAddress(props) {
+    const street = [props.housenumber, props.street].filter(Boolean).join(" ");
+    const place = props.district || props.locality || props.city || "";
+    const region = ADDRESS_STATES[props.state] || props.state || "";
+    const postcode = props.postcode || "";
+    const locality = [place, [region, postcode].filter(Boolean).join(" ")].filter(Boolean).join(" ");
+    const country = props.country && props.countrycode && props.countrycode !== "AU" ? props.country : "";
+    return [street || props.name || "", locality, country].filter(Boolean).join("\n");
+  }
+
+  function setupAddressSuggest(id) {
+    const input = document.getElementById(id);
+    const list = document.getElementById(id + "-list");
+    let timer = 0;
+    let controller = null;
+    let items = [];
+    let active = -1;
+    let chosen = "";
+
+    function closeList() {
+      list.hidden = true;
+      list.replaceChildren();
+      input.setAttribute("aria-expanded", "false");
+      input.removeAttribute("aria-activedescendant");
+      active = -1;
+      items = [];
+    }
+
+    function markActive() {
+      list.querySelectorAll(".address-option").forEach((button, index) => {
+        const on = index === active;
+        button.classList.toggle("is-active", on);
+        if (on) input.setAttribute("aria-activedescendant", button.id);
+      });
+    }
+
+    function choose(index) {
+      const item = items[index];
+      if (!item) return;
+      chosen = item.value;
+      input.value = item.value.slice(0, 500);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      closeList();
+    }
+
+    function showResults(results) {
+      list.replaceChildren();
+      items = results;
+      active = -1;
+      results.forEach((item, index) => {
+        const option = document.createElement("li");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "address-option";
+        button.id = id + "-opt-" + index;
+        button.setAttribute("role", "option");
+        button.textContent = item.label;
+        button.addEventListener("pointerdown", (event) => event.preventDefault());
+        button.addEventListener("click", () => choose(index));
+        option.appendChild(button);
+        list.appendChild(option);
+      });
+      list.hidden = results.length === 0;
+      input.setAttribute("aria-expanded", String(!list.hidden));
+    }
+
+    async function search(query) {
+      if (controller) controller.abort();
+      controller = new AbortController();
+      const url = "https://photon.komoot.io/api/?limit=6&lang=en&lat=-33.87&lon=151.21&location_bias_scale=0.15&q=" + encodeURIComponent(query);
+      try {
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) {
+          closeList();
+          return;
+        }
+        const data = await response.json();
+        const features = Array.isArray(data.features) ? data.features : [];
+        const seen = new Set();
+        const results = [];
+        const ranked = features.slice().sort((left, right) => {
+          const leftAu = left.properties && left.properties.countrycode === "AU" ? 0 : 1;
+          const rightAu = right.properties && right.properties.countrycode === "AU" ? 0 : 1;
+          return leftAu - rightAu;
+        });
+        for (const feature of ranked) {
+          const props = feature && feature.properties ? feature.properties : {};
+          const value = formatAddress(props);
+          if (!value || seen.has(value)) continue;
+          seen.add(value);
+          results.push({ value, label: value.replace(/\n/g, ", ") });
+        }
+        if (input.value.trim() !== query) return;
+        showResults(results);
+      } catch (error) {
+        if (error && error.name === "AbortError") return;
+        closeList();
+      }
+    }
+
+    input.addEventListener("input", () => {
+      const query = input.value.trim();
+      if (query === chosen) return;
+      chosen = "";
+      window.clearTimeout(timer);
+      if (query.length < 3) {
+        closeList();
+        return;
+      }
+      timer = window.setTimeout(() => search(query), 320);
+    });
+    input.addEventListener("keydown", (event) => {
+      if (list.hidden) return;
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        active = Math.min(items.length - 1, active + 1);
+        markActive();
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        active = Math.max(0, active - 1);
+        markActive();
+      } else if (event.key === "Enter" && active >= 0) {
+        event.preventDefault();
+        choose(active);
+      } else if (event.key === "Escape") {
+        closeList();
+      }
+    });
+    input.addEventListener("blur", () => {
+      window.setTimeout(closeList, 180);
+    });
+  }
+
   function renderCatalog() {
     const list = document.getElementById("catalog-list");
     const empty = document.getElementById("catalog-empty");
@@ -917,17 +1063,199 @@
     descriptionInput.focus();
   }
 
+  function measure(value, max) {
+    const number = parseFloat(String(value ?? "").trim());
+    if (!Number.isFinite(number) || number <= 0 || number > max) return null;
+    return Math.round(number * 100) / 100;
+  }
+
+  function areaSqm(area) {
+    return Math.round(area.length * area.width * 100) / 100;
+  }
+
+  function areaCum(area) {
+    return Math.round(areaSqm(area) * (area.thickness / 1000) * 100) / 100;
+  }
+
+  function concreteTotals() {
+    return state.concrete.areas.reduce((sum, area) => {
+      sum.sqm = Math.round((sum.sqm + areaSqm(area)) * 100) / 100;
+      sum.cum = Math.round((sum.cum + areaCum(area)) * 100) / 100;
+      return sum;
+    }, { sqm: 0, cum: 0 });
+  }
+
+  function saveConcrete() {
+    persist(storageKeys().concrete, state.concrete);
+  }
+
+  function loadConcrete() {
+    const raw = loadJson(storageKeys().concrete, null);
+    const areas = [];
+    const list = raw && Array.isArray(raw.areas) ? raw.areas : [];
+    for (const item of list) {
+      if (!item || typeof item !== "object") continue;
+      const length = measure(item.length, 1000);
+      const width = measure(item.width, 1000);
+      const thickness = measure(item.thickness, 2000);
+      if (length == null || width == null || thickness == null) continue;
+      areas.push({
+        id: asText(item.id, 80) || uid(),
+        name: asText(item.name, 40),
+        length,
+        width,
+        thickness,
+      });
+    }
+    state.concrete = {
+      rate: parseMoney(raw && raw.rate),
+      areas: areas.slice(0, 40),
+    };
+  }
+
+  function concreteDescription(areas, totals) {
+    const parts = areas.map((area) => {
+      const name = area.name ? `${area.name} ` : "";
+      return `${name}${area.length}×${area.width} m`;
+    });
+    const summary = `Concrete ${totals.sqm.toFixed(2)} m², ${totals.cum.toFixed(2)} m³`;
+    const full = `${summary}: ${parts.join("; ")}`;
+    return full.length <= 180 ? full : summary;
+  }
+
+  function updateConcretePreview() {
+    const node = document.getElementById("concrete-preview");
+    const length = measure(document.getElementById("concrete-length").value, 1000);
+    const width = measure(document.getElementById("concrete-width").value, 1000);
+    if (length == null || width == null) {
+      node.textContent = "This area 0.00 m²";
+      return;
+    }
+    const sqm = Math.round(length * width * 100) / 100;
+    node.textContent = `This area ${sqm.toFixed(2)} m²`;
+  }
+
+  function renderConcrete() {
+    const list = document.getElementById("concrete-areas");
+    const empty = document.getElementById("concrete-empty");
+    const totals = concreteTotals();
+    list.replaceChildren();
+    empty.hidden = state.concrete.areas.length > 0;
+    for (const area of state.concrete.areas) {
+      const row = document.createElement("li");
+      row.className = "concrete-row";
+      const title = document.createElement("div");
+      title.className = "service-copy";
+      const name = document.createElement("strong");
+      name.className = "service-name";
+      name.textContent = area.name || "Area";
+      const size = document.createElement("span");
+      size.className = "ex";
+      size.textContent = `${area.length} m × ${area.width} m, ${area.thickness} mm`;
+      title.append(name, size);
+      const measures = document.createElement("div");
+      measures.className = "concrete-measures";
+      measures.textContent = `${areaSqm(area).toFixed(2)} m² · ${areaCum(area).toFixed(2)} m³`;
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "btn small danger";
+      remove.textContent = "Remove";
+      remove.addEventListener("click", () => {
+        state.concrete.areas = state.concrete.areas.filter((entry) => entry.id !== area.id);
+        saveConcrete();
+        renderConcrete();
+      });
+      row.append(title, measures, remove);
+      list.appendChild(row);
+    }
+    document.getElementById("concrete-sqm").textContent = `${totals.sqm.toFixed(2)} m²`;
+    document.getElementById("concrete-cum").textContent = `${totals.cum.toFixed(2)} m³`;
+    const rate = state.concrete.rate;
+    const quote = rate == null ? 0 : money(totals.cum * rate);
+    document.getElementById("concrete-quote").textContent = aud.format(Number.isFinite(quote) ? quote : 0);
+    const rateInput = document.getElementById("concrete-rate");
+    if (document.activeElement !== rateInput) rateInput.value = rate == null ? "" : String(rate);
+  }
+
+  function addConcreteArea() {
+    const error = document.getElementById("concrete-error");
+    const name = document.getElementById("concrete-name").value.trim();
+    const length = measure(document.getElementById("concrete-length").value, 1000);
+    const width = measure(document.getElementById("concrete-width").value, 1000);
+    const thickness = measure(document.getElementById("concrete-thickness").value, 2000);
+    if (length == null || width == null) {
+      error.hidden = false;
+      error.textContent = "Enter a length and width greater than 0.";
+      return;
+    }
+    if (thickness == null) {
+      error.hidden = false;
+      error.textContent = "Enter a thickness in millimetres.";
+      return;
+    }
+    error.hidden = true;
+    state.concrete.areas.push({ id: uid(), name: name.slice(0, 40), length, width, thickness });
+    saveConcrete();
+    document.getElementById("concrete-name").value = "";
+    document.getElementById("concrete-length").value = "";
+    document.getElementById("concrete-width").value = "";
+    updateConcretePreview();
+    renderConcrete();
+    document.getElementById("concrete-name").focus();
+  }
+
+  function addConcreteToInvoice() {
+    const error = document.getElementById("concrete-error");
+    const totals = concreteTotals();
+    if (!state.concrete.areas.length || !(totals.sqm > 0)) {
+      error.hidden = false;
+      error.textContent = "Add at least one area.";
+      return;
+    }
+    if (state.concrete.rate == null) {
+      error.hidden = false;
+      error.textContent = "Enter the rate per cubic metre, excluding GST.";
+      document.getElementById("concrete-rate").focus();
+      return;
+    }
+    if (!(totals.cum > 0)) {
+      error.hidden = false;
+      error.textContent = "The volume is too small to price. Check the thickness.";
+      return;
+    }
+    error.hidden = true;
+    const id = uid();
+    state.catalog.push({
+      id,
+      description: concreteDescription(state.concrete.areas, totals),
+      price: state.concrete.rate,
+      units: normalizeQty(totals.cum),
+    });
+    state.draft.selected[id] = { on: true, qty: normalizeQty(totals.cum) };
+    saveCatalog();
+    saveDraft();
+    renderCatalog();
+    updatePreview();
+    showView("create");
+    toast("Concrete quote added to this invoice.");
+  }
+
   function showView(name) {
     state.view = name;
     document.getElementById("view-create").hidden = name !== "create";
+    document.getElementById("view-concrete").hidden = name !== "concrete";
     document.getElementById("view-invoices").hidden = name !== "invoices";
     document.getElementById("view-detail").hidden = name !== "detail";
     const newTab = document.getElementById("nav-new");
+    const concreteTab = document.getElementById("nav-concrete");
     const savedTab = document.getElementById("nav-saved");
     if (name === "create") newTab.setAttribute("aria-current", "page");
     else newTab.removeAttribute("aria-current");
+    if (name === "concrete") concreteTab.setAttribute("aria-current", "page");
+    else concreteTab.removeAttribute("aria-current");
     if (name === "invoices" || name === "detail") savedTab.setAttribute("aria-current", "page");
     else savedTab.removeAttribute("aria-current");
+    if (name === "concrete") renderConcrete();
     if (name === "invoices") renderInvoiceList();
     if (name === "detail") {
       const invoice = state.invoices.find((entry) => entry.id === state.detailId);
@@ -1383,6 +1711,7 @@
     document.getElementById("app-nav").hidden = true;
     document.getElementById("account-bar").hidden = true;
     document.getElementById("view-create").hidden = true;
+    document.getElementById("view-concrete").hidden = true;
     document.getElementById("view-invoices").hidden = true;
     document.getElementById("view-detail").hidden = true;
     document.getElementById("auth-offline").hidden = !offline;
@@ -1425,6 +1754,7 @@
     acceptProfileSync = false;
     state.company = sanitizeCompany(company);
     state.catalog = sanitizeCatalog(loadJson(storageKeys().catalog, []));
+    loadConcrete();
     const storedInvoices = loadJson(storageKeys().invoices, []);
     state.invoices = uniqueById(
       (Array.isArray(storedInvoices) ? storedInvoices : []).map(sanitizeInvoice).filter(Boolean)
@@ -1450,6 +1780,7 @@
     renderLogoThumb();
     syncEditUi();
     renderCatalog();
+    renderConcrete();
     renderInvoiceList();
     showView("create");
     acceptProfileSync = true;
@@ -1474,6 +1805,7 @@
     }
     state.company = blankCompany();
     state.catalog = [];
+    state.concrete = { rate: null, areas: [] };
     state.invoices = [];
     state.draft = sanitizeDraft(null, []);
     state.editingId = null;
@@ -1569,6 +1901,9 @@
     bindField("bill-phone", (value) => {
       state.draft.billTo.phone = value;
     }, saveDraft);
+    setupAddressSuggest("company-address");
+    setupAddressSuggest("bill-address");
+    setupAddressSuggest("reg-address");
 
     document.getElementById("logo-input").addEventListener("change", async (event) => {
       const [file] = event.target.files || [];
@@ -1723,7 +2058,34 @@
     });
 
     document.getElementById("nav-new").addEventListener("click", () => showView("create"));
+    document.getElementById("nav-concrete").addEventListener("click", () => showView("concrete"));
     document.getElementById("nav-saved").addEventListener("click", () => showView("invoices"));
+    document.getElementById("concrete-add").addEventListener("click", addConcreteArea);
+    for (const id of ["concrete-name", "concrete-length", "concrete-width", "concrete-thickness"]) {
+      document.getElementById(id).addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          addConcreteArea();
+        }
+      });
+    }
+    for (const id of ["concrete-length", "concrete-width"]) {
+      document.getElementById(id).addEventListener("input", updateConcretePreview);
+    }
+    document.getElementById("concrete-rate").addEventListener("input", () => {
+      const raw = document.getElementById("concrete-rate").value;
+      state.concrete.rate = raw.trim() === "" ? null : parseMoney(raw);
+      saveConcrete();
+      renderConcrete();
+    });
+    document.getElementById("concrete-to-invoice").addEventListener("click", addConcreteToInvoice);
+    document.getElementById("concrete-clear").addEventListener("click", () => {
+      if (!state.concrete.areas.length) return;
+      if (!window.confirm("Remove all concrete areas?")) return;
+      state.concrete.areas = [];
+      saveConcrete();
+      renderConcrete();
+    });
     document.getElementById("invoice-search").addEventListener("input", renderInvoiceList);
     document.getElementById("backup-download").addEventListener("click", downloadBackup);
     document.getElementById("backup-restore").addEventListener("change", (event) => {

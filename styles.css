@@ -254,9 +254,43 @@ textarea {
   font-weight: 400;
 }
 
-textarea {
-  resize: vertical;
-  min-height: 76px;
+.address-box {
+  position: relative;
+  display: block;
+}
+
+.address-list {
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: white;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  max-height: 240px;
+  overflow: auto;
+}
+
+.address-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-height: 44px;
+  font-weight: 500;
+}
+
+.address-option.is-active,
+.address-option:hover {
+  background: var(--accent-soft);
 }
 
 .req {
@@ -307,6 +341,34 @@ textarea {
   grid-template-columns: minmax(0, 1fr) 120px 88px auto auto;
   gap: 8px;
   align-items: end;
+}
+
+.concrete-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(90px, 0.6fr));
+  gap: 8px 12px;
+  align-items: end;
+}
+
+.concrete-form .calc-price,
+.concrete-form .btn {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.concrete-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px 16px;
+  align-items: center;
+  padding: 12px 4px;
+  border-top: 1px solid var(--line);
+}
+
+.concrete-measures {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .calc-price {
@@ -1284,6 +1346,8 @@ textarea {
   .grid-2,
   .add-service,
   .editor,
+  .concrete-form,
+  .concrete-row,
   .sheet.template-classic .sheet-top {
     display: grid;
     grid-template-columns: 1fr;
@@ -1309,6 +1373,10 @@ textarea {
 
   .service-side {
     justify-content: flex-start;
+  }
+
+  .concrete-measures {
+    text-align: left;
   }
 
   .wordmark {

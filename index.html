@@ -21,6 +21,7 @@
       <div class="topbar-actions">
         <nav id="app-nav" aria-label="Primary" hidden>
           <button type="button" class="tab" id="nav-new" aria-current="page">New invoice</button>
+          <button type="button" class="tab" id="nav-concrete">Concrete</button>
           <button type="button" class="tab" id="nav-saved">
             Saved
             <span class="count" id="saved-count">0</span>
@@ -75,7 +76,10 @@
             <input id="reg-abn" type="text" maxlength="20" />
           </label>
           <label class="field" for="reg-address">Address
-            <textarea id="reg-address" maxlength="500"></textarea>
+            <span class="address-box">
+              <textarea id="reg-address" maxlength="500" rows="3" autocomplete="off" aria-autocomplete="list" aria-expanded="false" aria-controls="reg-address-list"></textarea>
+              <ul id="reg-address-list" class="address-list" role="listbox" hidden></ul>
+            </span>
           </label>
           <div class="grid-2">
             <label class="field" for="reg-phone">Phone
@@ -169,7 +173,10 @@
             </label>
             <label class="field" for="company-address">
               <span class="lbl">Address</span>
-              <textarea id="company-address" name="street-address" autocomplete="street-address" maxlength="500" rows="3"></textarea>
+              <span class="address-box">
+                <textarea id="company-address" name="street-address" autocomplete="off" maxlength="500" rows="3" aria-autocomplete="list" aria-expanded="false" aria-controls="company-address-list"></textarea>
+                <ul id="company-address-list" class="address-list" role="listbox" hidden></ul>
+              </span>
             </label>
             <div class="grid-2">
               <label class="field" for="company-phone">
@@ -201,7 +208,10 @@
             </label>
             <label class="field" for="bill-address">
               <span class="lbl">Address</span>
-              <textarea id="bill-address" name="bill-address" autocomplete="street-address" maxlength="500" rows="3"></textarea>
+              <span class="address-box">
+                <textarea id="bill-address" name="bill-address" autocomplete="off" maxlength="500" rows="3" aria-autocomplete="list" aria-expanded="false" aria-controls="bill-address-list"></textarea>
+                <ul id="bill-address-list" class="address-list" role="listbox" hidden></ul>
+              </span>
             </label>
             <label class="field" for="bill-phone">
               <span class="lbl">Phone</span>
@@ -252,6 +262,56 @@
           <p class="preview-label">Live preview</p>
           <div id="preview-mount"></div>
         </aside>
+      </div>
+    </section>
+
+    <section id="view-concrete" class="view" hidden>
+      <div class="panel-head">
+        <div>
+          <h2 class="panel-title">Concrete quote</h2>
+          <p class="hint">Enter the length and width of each area. Every area is added to the running total in square metres.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="concrete-form">
+          <label class="field" for="concrete-name">
+            <span class="lbl">Area</span>
+            <input id="concrete-name" type="text" maxlength="40" placeholder="Driveway" />
+          </label>
+          <label class="field" for="concrete-length">
+            <span class="lbl">Length (m)</span>
+            <input id="concrete-length" type="number" min="0" step="0.01" inputmode="decimal" />
+          </label>
+          <label class="field" for="concrete-width">
+            <span class="lbl">Width (m)</span>
+            <input id="concrete-width" type="number" min="0" step="0.01" inputmode="decimal" />
+          </label>
+          <label class="field" for="concrete-thickness">
+            <span class="lbl">Thickness (mm)</span>
+            <input id="concrete-thickness" type="number" min="1" step="1" inputmode="decimal" value="100" />
+          </label>
+          <p id="concrete-preview" class="calc-price">This area 0.00 m²</p>
+          <button type="button" class="btn primary" id="concrete-add">Add area</button>
+        </div>
+        <p id="concrete-error" class="field-error" hidden></p>
+        <ul id="concrete-areas" class="catalog"></ul>
+        <p id="concrete-empty" class="hint">No areas yet. Add a length and width and it joins the total.</p>
+      </div>
+      <div class="card">
+        <div class="money-box">
+          <div><span>Total area</span><strong id="concrete-sqm">0.00 m²</strong></div>
+          <div><span>Total volume</span><strong id="concrete-cum">0.00 m³</strong></div>
+          <label class="field" for="concrete-rate">
+            <span class="lbl">Rate per m³, excluding GST</span>
+            <input id="concrete-rate" type="number" min="0" step="0.01" inputmode="decimal" />
+          </label>
+          <div class="grand"><span>Quote excl. GST</span><strong id="concrete-quote">$0.00</strong></div>
+        </div>
+        <p class="hint">GST is 10% and is added when this quote is placed on an invoice.</p>
+        <div class="actions">
+          <button type="button" class="btn primary" id="concrete-to-invoice">Add to invoice</button>
+          <button type="button" class="btn ghost" id="concrete-clear">Clear areas</button>
+        </div>
       </div>
     </section>
 
