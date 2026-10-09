@@ -352,6 +352,7 @@
         name: asText(raw.billTo && raw.billTo.name, 120) || "Client",
         address: asText(raw.billTo && raw.billTo.address, 500),
         phone: asText(raw.billTo && raw.billTo.phone, 40),
+        email: asText(raw.billTo && raw.billTo.email, 120),
       },
       lines,
       ...sums,
@@ -366,7 +367,7 @@
     return {
       number: nextNumber(invoices),
       date: todayISO(),
-      billTo: { name: "", address: "", phone: "" },
+      billTo: { name: "", address: "", phone: "", email: "" },
       selected: {},
     };
   }
@@ -400,6 +401,7 @@
         name: asText(raw.billTo && raw.billTo.name, 120),
         address: asText(raw.billTo && raw.billTo.address, 500),
         phone: asText(raw.billTo && raw.billTo.phone, 40),
+        email: asText(raw.billTo && raw.billTo.email, 120),
       },
       selected,
       editId: invoices.some((invoice) => invoice.id === editId) ? editId : undefined,
@@ -490,7 +492,7 @@
     root.classList.add(`template-${templateName(model.template)}`);
     applyTheme(model.theme, root);
     const company = model.company || blankCompany();
-    const bill = model.billTo || { name: "", address: "", phone: "" };
+    const bill = model.billTo || { name: "", address: "", phone: "", email: "" };
     root.querySelectorAll('[data-field="logo"]').forEach((logo) => {
       if (company.logo) {
         logo.src = company.logo;
@@ -512,6 +514,7 @@
     setField(root, "bill-name", bill.name, placeholders ? "Client name" : "");
     setField(root, "bill-address", bill.address, placeholders ? "Client address" : "");
     setField(root, "bill-phone", bill.phone, placeholders ? "Client phone" : "");
+    setField(root, "bill-email", bill.email, placeholders ? "Client email" : "");
 
     const tbody = root.querySelector('[data-field="lines"]');
     tbody.replaceChildren();
@@ -620,6 +623,7 @@
     document.getElementById("bill-name").value = state.draft.billTo.name;
     document.getElementById("bill-address").value = state.draft.billTo.address;
     document.getElementById("bill-phone").value = state.draft.billTo.phone;
+    document.getElementById("bill-email").value = state.draft.billTo.email || "";
     const chosen = templateName(state.draft.template || state.company.template);
     const radio = document.querySelector(`input[name="invoice-template"][value="${chosen}"]`);
     if (radio) radio.checked = true;
@@ -637,6 +641,7 @@
     state.draft.billTo.name = document.getElementById("bill-name").value;
     state.draft.billTo.address = document.getElementById("bill-address").value;
     state.draft.billTo.phone = document.getElementById("bill-phone").value;
+    state.draft.billTo.email = document.getElementById("bill-email").value;
   }
 
   function syncEditUi() {
@@ -1350,7 +1355,13 @@
     const sheet = template.content.firstElementChild.cloneNode(true);
     fillSheet(sheet, invoice, false);
     document.getElementById("detail-mount").replaceChildren(sheet);
+    document.getElementById("detail-email-to").value = invoice.billTo.email || "";
+    const hint = document.getElementById("send-hint");
+    hint.textContent = localMailHost()
+      ? "On this computer the email is sent to the local mailbox, with the invoice attached. Every invoice uses the same subject and message."
+      : "Every invoice uses the same subject and message. The tax invoice is attached as a PDF.";
     showView("detail");
+    if (localMailHost()) loadLocalMail();
     title.focus();
   }
 
@@ -1397,6 +1408,7 @@
         name: invoice.billTo.name,
         address: invoice.billTo.address,
         phone: invoice.billTo.phone,
+        email: invoice.billTo.email || "",
       },
       selected,
       template: templateName(invoice.template),
@@ -1437,8 +1449,11 @@
 
     const errors = [];
     if (!state.company.name.trim()) errors.push("Company name is required.");
-    if (state.company.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.company.email.trim())) {
+    if (state.company.email.trim() && !validEmail(state.company.email)) {
       errors.push("Enter a valid company email, or leave it blank.");
+    }
+    if (state.draft.billTo.email.trim() && !validEmail(state.draft.billTo.email)) {
+      errors.push("Enter a valid client email, or leave it blank.");
     }
     if (!formatDate(state.draft.date)) errors.push("Choose an invoice date.");
     if (!state.draft.billTo.name.trim()) errors.push("Bill to name is required.");
@@ -1470,6 +1485,7 @@
         name: state.draft.billTo.name.trim(),
         address: state.draft.billTo.address.trim(),
         phone: state.draft.billTo.phone.trim(),
+        email: state.draft.billTo.email.trim(),
       },
       lines,
       ...totals(lines),
@@ -1583,6 +1599,419 @@
     const fontsReady = doc.fonts && doc.fonts.ready ? doc.fonts.ready.catch(() => undefined) : Promise.resolve();
     Promise.all([cssReady, fontsReady]).then(start);
     window.setTimeout(start, 1500);
+  }
+
+  function validEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+  }
+
+  function invoiceEmailSubject(invoice) {
+    const company = String(invoice.company.name || "").replace(/[\r\n]+/g, " ").trim() || "our company";
+    return `Tax invoice ${invoice.number} from ${company}`;
+  }
+
+  function invoiceEmailBody(invoice) {
+    const company = String(invoice.company.name || "").trim() || "our company";
+    const lines = [
+      "Hello,",
+      "",
+      "Please find your tax invoice attached.",
+      "",
+      `Invoice number: ${invoice.number}`,
+      `Invoice date: ${formatDate(invoice.date)}`,
+      `Amount due: ${aud.format(invoice.total)} including GST`,
+      "",
+      "Kind regards,",
+      company,
+    ];
+    if ((invoice.company.phone || "").trim()) lines.push(invoice.company.phone.trim());
+    if ((invoice.company.email || "").trim()) lines.push(invoice.company.email.trim());
+    return lines.join("\r\n");
+  }
+
+  function asciiPdf(text) {
+    return String(text || "")
+      .replace(/\u00a0/g, " ")
+      .replace(/[\u2013\u2014]/g, "-")
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201c\u201d]/g, '"')
+      .replace(/\u00b7/g, "-")
+      .replace(/\u00d7/g, "x")
+      .replace(/[^\n\x20-\x7E]/g, " ");
+  }
+
+  function pdfEscape(text) {
+    return asciiPdf(text).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  }
+
+  function pdfRgb(hex) {
+    const value = parseInt(themeColor(hex).slice(1), 16);
+    return [
+      ((value >> 16) & 255) / 255,
+      ((value >> 8) & 255) / 255,
+      (value & 255) / 255,
+    ].map((channel) => channel.toFixed(3)).join(" ");
+  }
+
+  function pdfWidth(text, size) {
+    return asciiPdf(text).replace(/\n/g, "").length * size * 0.5;
+  }
+
+  function wrapPdf(text, maxWidth, size) {
+    const clean = asciiPdf(text).replace(/\s+/g, " ").trim();
+    if (!clean) return [];
+    const lines = [];
+    let line = "";
+    for (const word of clean.split(" ")) {
+      const next = line ? `${line} ${word}` : word;
+      if (pdfWidth(next, size) <= maxWidth) {
+        line = next;
+      } else {
+        if (line) lines.push(line);
+        line = word;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function assemblePdf(pages) {
+    const font1 = 1;
+    const font2 = 2;
+    const contentStart = 3;
+    const pageStart = contentStart + pages.length;
+    const pagesId = pageStart + pages.length;
+    const catalogId = pagesId + 1;
+    const bodies = [];
+    bodies[font1] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+    bodies[font2] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>";
+    pages.forEach((ops, index) => {
+      const stream = ops.join("\n");
+      bodies[contentStart + index] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+      bodies[pageStart + index] =
+        `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 595.28 841.89] ` +
+        `/Contents ${contentStart + index} 0 R /Resources << /Font << /F1 ${font1} 0 R /F2 ${font2} 0 R >> >> >>`;
+    });
+    bodies[pagesId] = `<< /Type /Pages /Kids [${pages.map((_, index) => `${pageStart + index} 0 R`).join(" ")}] /Count ${pages.length} >>`;
+    bodies[catalogId] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+
+    let output = "%PDF-1.4\n";
+    const offsets = [0];
+    for (let id = 1; id <= catalogId; id += 1) {
+      offsets[id] = output.length;
+      output += `${id} 0 obj\n${bodies[id]}\nendobj\n`;
+    }
+    const xref = output.length;
+    output += `xref\n0 ${catalogId + 1}\n0000000000 65535 f \n`;
+    for (let id = 1; id <= catalogId; id += 1) {
+      output += `${String(offsets[id]).padStart(10, "0")} 00000 n \n`;
+    }
+    output += `trailer\n<< /Size ${catalogId + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+    return output;
+  }
+
+  function buildInvoicePdf(invoice) {
+    const pageW = 595.28;
+    const pageH = 841.89;
+    const left = 48;
+    const right = pageW - 48;
+    const accent = pdfRgb(invoice.theme);
+    const onBar = pdfRgb(onAccent(invoice.theme));
+    const ink = "0.141 0.110 0.086";
+    const muted = "0.420 0.380 0.340";
+    const rule = "0.820 0.780 0.720";
+    const soft = pdfRgb(mixTowardWhite(themeColor(invoice.theme), 0.88));
+    const pages = [];
+    let ops = [];
+    let top = 40;
+    const num = (value) => (Math.round(value * 100) / 100).toFixed(2);
+
+    function fill(x, yTop, w, h, color) {
+      ops.push(`${color} rg ${num(x)} ${num(pageH - yTop - h)} ${num(w)} ${num(h)} re f`);
+    }
+
+    function draw(x, yTop, size, text, font, color) {
+      const shown = asciiPdf(text).replace(/\s+/g, " ").trim();
+      if (!shown) return;
+      ops.push(`${color} rg BT /${font} ${size} Tf ${num(x)} ${num(pageH - yTop)} Td (${pdfEscape(shown)}) Tj ET`);
+    }
+
+    function drawRight(xRight, yTop, size, text, font, color) {
+      draw(xRight - pdfWidth(text, size), yTop, size, text, font, color);
+    }
+
+    function flushPage() {
+      if (ops.length) pages.push(ops);
+      ops = [];
+    }
+
+    function continuePage() {
+      flushPage();
+      top = 36;
+      fill(0, 0, pageW, 32, accent);
+      draw(left, 21, 11, `Tax invoice ${invoice.number}`, "F2", onBar);
+      top = 56;
+    }
+
+    function ensure(height) {
+      if (top + height > pageH - 48) continuePage();
+    }
+
+    fill(0, 0, pageW, 92, accent);
+    draw(left, 40, 18, "TAX INVOICE", "F2", onBar);
+    const companyName = asciiPdf(invoice.company.name || "Invoice").replace(/\s+/g, " ").trim();
+    draw(left, 66, 12, companyName.length > 42 ? `${companyName.slice(0, 39)}...` : companyName, "F1", onBar);
+    drawRight(right, 40, 12, invoice.number, "F2", onBar);
+    drawRight(right, 60, 11, formatDate(invoice.date), "F1", onBar);
+    top = 118;
+
+    function party(x, width, title, lines) {
+      draw(x, top, 9, title, "F2", muted);
+      let y = top + 18;
+      for (const line of lines) {
+        for (const wrapped of wrapPdf(line, width, 11)) {
+          draw(x, y, 11, wrapped, "F1", ink);
+          y += 15;
+        }
+      }
+      return y;
+    }
+
+    const fromLines = [
+      invoice.company.name,
+      formatAbn(invoice.company.abn),
+      ...(invoice.company.address || "").split("\n"),
+      invoice.company.phone,
+      invoice.company.email,
+    ].map((line) => String(line || "").trim()).filter(Boolean);
+    const billLines = [
+      invoice.billTo.name,
+      ...(invoice.billTo.address || "").split("\n"),
+      invoice.billTo.phone,
+      invoice.billTo.email,
+    ].map((line) => String(line || "").trim()).filter(Boolean);
+    const fromEnd = party(left, 230, "FROM", fromLines);
+    const billEnd = party(320, right - 320, "BILL TO", billLines);
+    top = Math.max(fromEnd, billEnd) + 22;
+
+    function tableHead() {
+      ensure(28);
+      fill(left - 8, top - 14, right - left + 16, 24, soft);
+      draw(left, top, 9, "Description", "F2", muted);
+      drawRight(360, top, 9, "Units", "F2", muted);
+      drawRight(455, top, 9, "Unit price", "F2", muted);
+      drawRight(right, top, 9, "Price", "F2", muted);
+      top += 22;
+    }
+
+    tableHead();
+    for (const line of invoice.lines) {
+      const description = wrapPdf(line.description, 230, 10);
+      const rowHeight = Math.max(16, description.length * 13);
+      if (top + rowHeight > pageH - 130) {
+        continuePage();
+        tableHead();
+      }
+      description.forEach((text, index) => draw(left, top + index * 13, 10, text, "F1", ink));
+      drawRight(360, top, 10, formatQty(line.qty), "F1", ink);
+      drawRight(455, top, 10, aud.format(line.price), "F1", ink);
+      drawRight(right, top, 10, aud.format(line.amount), "F2", ink);
+      top += rowHeight + 6;
+      ops.push(`${rule} RG 0.6 w ${num(left)} ${num(pageH - top)} m ${num(right)} ${num(pageH - top)} l S`);
+      top += 10;
+    }
+
+    ensure(88);
+    top += 6;
+    const summary = [
+      ["Subtotal", aud.format(invoice.subtotal), false],
+      ["GST 10%", aud.format(invoice.gst), false],
+      ["Total incl. GST", aud.format(invoice.total), true],
+    ];
+    for (const [label, value, grand] of summary) {
+      if (grand) {
+        fill(328, top - 14, right - 328 + 8, 26, accent);
+        draw(338, top, 11, label, "F2", onBar);
+        drawRight(right, top, 11, value, "F2", onBar);
+      } else {
+        draw(338, top, 11, label, "F1", muted);
+        drawRight(right, top, 11, value, "F1", ink);
+      }
+      top += 22;
+    }
+    top += 14;
+    const note = `All amounts are in AUD. Prices exclude GST. Total includes GST of ${aud.format(invoice.gst)}.`;
+    for (const line of wrapPdf(note, right - left, 9)) {
+      ensure(14);
+      draw(left, top, 9, line, "F1", muted);
+      top += 13;
+    }
+    flushPage();
+    return assemblePdf(pages);
+  }
+
+  function headerEncoded(value) {
+    const clean = String(value || "").replace(/[\r\n]+/g, " ").trim();
+    if (/^[\x20-\x7E]*$/.test(clean)) return clean;
+    return `=?UTF-8?B?${utf8Base64(clean)}?=`;
+  }
+
+  function utf8Base64(text) {
+    const bytes = new TextEncoder().encode(text);
+    let binary = "";
+    for (let index = 0; index < bytes.length; index += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+    }
+    return btoa(binary);
+  }
+
+  function wrapBase64(value) {
+    return value.replace(/.{1,76}/g, (chunk) => `${chunk}\r\n`).trim();
+  }
+
+  function buildInvoiceEml(invoice, to, pdf) {
+    const filename = `${String(invoice.number).replace(/[^\w.-]+/g, "_")}.pdf`;
+    const boundary = "invoice-book-mail";
+    const fromEmail = String(invoice.company.email || "").trim();
+    const fromName = String(invoice.company.name || "").trim();
+    const from = fromEmail && validEmail(fromEmail)
+      ? `${headerEncoded(fromName || fromEmail)} <${fromEmail}>`
+      : headerEncoded(fromName || "Invoice");
+    return [
+      `From: ${from}`,
+      `To: ${to}`,
+      `Subject: ${headerEncoded(invoiceEmailSubject(invoice))}`,
+      "X-Unsent: 1",
+      "MIME-Version: 1.0",
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      "",
+      `--${boundary}`,
+      "Content-Type: text/plain; charset=\"utf-8\"",
+      "Content-Transfer-Encoding: base64",
+      "",
+      wrapBase64(utf8Base64(invoiceEmailBody(invoice))),
+      "",
+      `--${boundary}`,
+      `Content-Type: application/pdf; name="${filename}"`,
+      "Content-Transfer-Encoding: base64",
+      `Content-Disposition: attachment; filename="${filename}"`,
+      "",
+      wrapBase64(utf8Base64(pdf)),
+      "",
+      `--${boundary}--`,
+      "",
+    ].join("\r\n");
+  }
+
+  function downloadBlob(blob, filename) {
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function localMailHost() {
+    return location.hostname === "127.0.0.1" || location.hostname === "localhost";
+  }
+
+  function renderLocalMail(messages) {
+    const box = document.getElementById("local-mail");
+    const list = document.getElementById("local-mail-list");
+    const items = Array.isArray(messages) ? messages : [];
+    list.replaceChildren();
+    box.hidden = items.length === 0;
+    for (const message of items) {
+      const row = document.createElement("li");
+      row.className = "local-mail-item";
+      const title = document.createElement("strong");
+      title.textContent = message.subject || "Tax invoice";
+      const who = document.createElement("span");
+      who.className = "ex";
+      who.textContent = message.to || "";
+      const body = document.createElement("p");
+      body.textContent = message.text || "";
+      const open = document.createElement("a");
+      open.href = `/api/mail/${encodeURIComponent(message.id)}.pdf`;
+      open.target = "_blank";
+      open.rel = "noopener";
+      open.textContent = "Open attached invoice";
+      row.append(title, who, body, open);
+      list.appendChild(row);
+    }
+  }
+
+  async function loadLocalMail() {
+    if (!localMailHost()) return;
+    try {
+      const data = await api("/api/mail");
+      renderLocalMail(data.messages);
+    } catch {
+      document.getElementById("local-mail").hidden = true;
+    }
+  }
+
+  async function sendInvoiceEmail() {
+    const invoice = state.invoices.find((entry) => entry.id === state.detailId);
+    if (!invoice) return;
+    const input = document.getElementById("detail-email-to");
+    const to = input.value.trim();
+    if (!validEmail(to)) {
+      toast("Enter the client's email address.");
+      input.focus();
+      return;
+    }
+    invoice.billTo.email = to;
+    if (!saveInvoices()) return;
+    const subject = invoiceEmailSubject(invoice);
+    const body = invoiceEmailBody(invoice);
+    const filename = `${String(invoice.number).replace(/[^\w.-]+/g, "_")}.pdf`;
+    const pdf = buildInvoicePdf(invoice);
+    if (localMailHost()) {
+      const button = document.getElementById("detail-email");
+      button.disabled = true;
+      try {
+        const data = await api("/api/mail", {
+          method: "POST",
+          body: JSON.stringify({
+            to,
+            subject,
+            text: body,
+            filename,
+            pdf: utf8Base64(pdf),
+            fromName: invoice.company.name || "",
+            fromEmail: invoice.company.email || "",
+          }),
+        });
+        renderLocalMail(data.messages);
+        toast(`Email sent on this computer to ${to}.`);
+      } catch (error) {
+        toast(error.message === "OFFLINE"
+          ? "Start this computer with python local_server.py, then send the email again."
+          : (error.message || "Could not send the email."));
+      } finally {
+        button.disabled = false;
+      }
+      return;
+    }
+    const file = new File([pdf], filename, { type: "application/pdf" });
+    if (navigator.canShare) {
+      try {
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: subject, text: body });
+          toast("The invoice is ready to send with the email.");
+          return;
+        }
+      } catch (error) {
+        if (error && error.name === "AbortError") return;
+      }
+    }
+    const emlName = filename.replace(/\.pdf$/, ".eml");
+    downloadBlob(new Blob([buildInvoiceEml(invoice, to, pdf)], { type: "message/rfc822" }), emlName);
+    toast("The email downloaded. Open it to send the invoice with the PDF attached.");
   }
 
   function downloadBackup() {
@@ -1901,6 +2330,9 @@
     bindField("bill-phone", (value) => {
       state.draft.billTo.phone = value;
     }, saveDraft);
+    bindField("bill-email", (value) => {
+      state.draft.billTo.email = value;
+    }, saveDraft);
     setupAddressSuggest("company-address");
     setupAddressSuggest("bill-address");
     setupAddressSuggest("reg-address");
@@ -1971,7 +2403,7 @@
     });
     document.getElementById("print-draft").addEventListener("click", printInvoice);
     document.getElementById("reset-draft").addEventListener("click", () => {
-      const hasClient = state.draft.billTo.name || state.draft.billTo.address || state.draft.billTo.phone;
+      const hasClient = state.draft.billTo.name || state.draft.billTo.address || state.draft.billTo.phone || state.draft.billTo.email;
       const hasTicks = Object.values(state.draft.selected).some((entry) => entry && entry.on);
       if ((hasClient || hasTicks) && !window.confirm("Clear the client and ticked descriptions? Company details and saved descriptions stay.")) {
         return;
@@ -2095,6 +2527,7 @@
     });
     document.getElementById("detail-back").addEventListener("click", () => showView("invoices"));
     document.getElementById("detail-print").addEventListener("click", printInvoice);
+    document.getElementById("detail-email").addEventListener("click", sendInvoiceEmail);
     document.getElementById("detail-edit").addEventListener("click", () => {
       const invoice = state.invoices.find((entry) => entry.id === state.detailId);
       if (invoice) editInvoice(invoice);

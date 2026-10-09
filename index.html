@@ -217,6 +217,10 @@
               <span class="lbl">Phone</span>
               <input id="bill-phone" name="bill-phone" type="tel" autocomplete="tel" maxlength="40" />
             </label>
+            <label class="field" for="bill-email">
+              <span class="lbl">Email</span>
+              <input id="bill-email" name="bill-email" type="email" autocomplete="email" maxlength="120" spellcheck="false" />
+            </label>
           </fieldset>
 
           <fieldset class="card">
@@ -346,6 +350,19 @@
           <button type="button" class="btn danger" id="detail-delete">Delete</button>
         </div>
       </div>
+      <div class="card send-card">
+        <label class="field" for="detail-email-to">
+          <span class="lbl">Send to</span>
+          <input id="detail-email-to" type="email" maxlength="120" spellcheck="false" placeholder="client@email.com" autocomplete="email" />
+        </label>
+        <button type="button" class="btn primary" id="detail-email">Send email</button>
+        <p class="hint" id="send-hint">Every invoice uses the same subject and message. The tax invoice is attached as a PDF.</p>
+      </div>
+      <div id="local-mail" class="card local-mail" hidden>
+        <h3 class="section-title">Local mailbox</h3>
+        <p class="hint">Messages sent from this computer stay here so you can open them and check the attached invoice.</p>
+        <ul id="local-mail-list" class="catalog"></ul>
+      </div>
       <div id="detail-mount" class="detail-sheet"></div>
     </section>
   </div>
@@ -378,6 +395,7 @@
         <h2 data-field="bill-name"></h2>
         <p data-field="bill-address"></p>
         <p data-field="bill-phone"></p>
+        <p data-field="bill-email"></p>
       </section>
       <div class="sheet-parties">
         <section class="party party-from">
@@ -392,6 +410,7 @@
           <h2 data-field="bill-name"></h2>
           <p data-field="bill-address"></p>
           <p data-field="bill-phone"></p>
+          <p data-field="bill-email"></p>
         </section>
         <section class="party party-meta">
           <p class="sheet-number"><span>Invoice</span> <strong data-field="number"></strong></p>

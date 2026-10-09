@@ -1112,6 +1112,36 @@ textarea {
   margin-right: 0;
 }
 
+.send-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.send-card .hint {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.local-mail {
+  margin-bottom: 16px;
+}
+
+.local-mail-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px 4px;
+  border-top: 1px solid var(--line);
+}
+
+.local-mail-item p {
+  margin: 0;
+  white-space: pre-wrap;
+  color: var(--muted);
+}
+
 .panel-head,
 .detail-bar {
   display: flex;
@@ -1348,6 +1378,7 @@ textarea {
   .editor,
   .concrete-form,
   .concrete-row,
+  .send-card,
   .sheet.template-classic .sheet-top {
     display: grid;
     grid-template-columns: 1fr;

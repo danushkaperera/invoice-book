@@ -32,3 +32,4 @@ auth.json
 
 # Local account file (usernames and password hashes)
 data/*.json
+data/mailbox/
